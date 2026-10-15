@@ -73,6 +73,9 @@ All of these are running totals, sent each second (gossip every two seconds).
 | --- | --- | --- | --- | --- | --- | --- |
 | Peer | identity, shred version, client, version, gossip, TVU, TPU, TPU QUIC, RPC and votor addresses, start time, last heard (wall clock), full and incremental snapshot slots, lowest slot | on change; all peers at an interval | Per peer, bounded | `ClusterInfo::all_peers`, `gossip.crds` | 2 | `ClusterInfo::all_peers` |
 | Vote account | vote key, identity, activated stake, commission, credits this epoch, BLS key set, last voted slot | each epoch and each change of stake or commission; last voted slot and all accounts at an interval | Per account | `Bank::vote_accounts` | 2 | `Bank::vote_accounts` |
+| Stake delegation | stake account, vote account, delegated lamports, activation epoch, deactivation epoch | each stake account write that the stakes cache records | Static | nothing: a new stake view | 3 | Needed |
+| Epoch stake | epoch, vote account, effective, activating and deactivating lamports, as the runtime calculates them; once per epoch, the cluster's stake history entry | each epoch boundary | Per vote account | `Bank::epoch_stakes`, for effective stake only | 3 | Needed |
+| Our delegations | the Stake delegation fields, for each stake account delegated to this node's vote account | at start and at an interval | Per stake account | nothing | 3 | Needed |
 | Admitted set (alpenglow) | epoch, rank, identity, vote key, stake; for this node: seat this epoch, seat next epoch, ticket shortfall | each epoch, for this epoch and the next; all ranks at an interval | Per rank | `Bank::get_rank_map`, `get_vat_health_for_next_epoch` | 2 | those reads |
 | Epoch | epoch, first slot, slots in epoch, ns per slot, cluster type, consensus (tower or alpenglow), lamports per signature, admission ticket minimum, rent-exempt minimum for a vote account | at start, each epoch, and at an interval | Static, state | `Bank::epoch_schedule`, `ns_per_slot_at_slot`, `cluster_type`, `migration_status`, the fee and ticket reads | 2 | those reads |
 | Slot clock | slot, block height, clock unix timestamp | each root | Static | `Bank::block_height`, `Bank::clock` | 2 | those reads |
@@ -80,6 +83,8 @@ All of these are running totals, sent each second (gossip every two seconds).
 | Validator info | identity, name, icon URL, parsed in the validator | on change; all validators at an interval, which needs the config program's account index | Per validator, bounded: under 700 bytes, as validator info is at most 576 bytes | the config program's accounts | 2 | `get_filtered_indexed_accounts`, `get_program_accounts_modified_since_parent` |
 
 The leader schedule is too large for one event. Send it one turn at a time, or send the epoch's node stakes so that the dashboard calculates it.
+
+Activation depends on the cluster's warmup and cooldown rate. So Epoch stake carries the runtime's own figures, and the subscriber does not calculate them. Our delegations is the only stream for this node alone: it gives a late subscriber the full list without resending every stake account in the cluster.
 
 ### Node and start-up
 
@@ -96,6 +101,7 @@ The leader schedule is too large for one event. Send it one turn at a time, or s
 Each of these is priority 3. The dashboard shows none of them today.
 
 - Shred arrival, in the table above: a shred timeline for each block.
+- Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - The TPU counters with a slot, read when the slot ends: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
 - The reason for each skipped slot.
