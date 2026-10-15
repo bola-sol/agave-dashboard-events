@@ -101,7 +101,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 - The reason for each skipped slot.
 - The costliest accounts of each of our blocks, as a bounded list.
 - Compute for each of our blocks, split into votes, bundles and the rest.
-- Delivered packet counts for the serve repair, ancestor hashes and block id repair receivers. anza-xyz/agave#15157 adds the first.
+- Delivered packet counts for the serve repair, ancestor hashes and block id repair receivers.
 - Counters for failed QUIC accepts and refused connections.
 - Address lookup failures, counted apart from malformed transactions.
 - Gossip traffic for each peer, and bytes for each gossip message type.
