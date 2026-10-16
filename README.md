@@ -146,7 +146,7 @@ Each branch's INPUTS.md lists the inputs that build reads, with each exact field
 
 | Validator | Branch | INPUTS.md |
 | --- | --- | --- |
-| Agave 4.3 | `dashboard/v4.3.1` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.3.1/dashboard/INPUTS.md) |
+| Agave 4.3 | `dashboard/v4.3.2` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.3.2/dashboard/INPUTS.md) |
 | Agave 4.4 | `dashboard/v4.4.0-beta.1` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.4.0-beta.1/dashboard/INPUTS.md) |
-| Jito 4.3 | `dashboard/v4.3.1-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.1-jito/dashboard/INPUTS.md) |
-| Jito 4.4 | `dashboard/v4.4.0-beta.0-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.0-beta.0-jito/dashboard/INPUTS.md) |
+| Jito 4.3 | `dashboard/v4.3.2-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.2-jito/dashboard/INPUTS.md) |
+| Jito 4.4 | `dashboard/v4.4.0-beta.1-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.0-beta.1-jito/dashboard/INPUTS.md) |
