@@ -55,6 +55,9 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Reward certificate | rewarded slot, writer slot, notarize or skip, ranks paid (bitmap), notarize count, skip count, block producer time (wall clock ns) | each block footer replayed | Bounded: a bitmap of the admitted set | the parse of block footers (`get_slot_components_with_shred_info`) | 1 | the footer parse, which reads ledger bytes |
 | Finalization certificate | finalized slot, ranks that voted (bitmap) | each certificate | Bounded | `Bank::vote_accounts` `last_voted_slot` at freeze | 2 | `Bank::vote_accounts` |
 | Vote latency | fields of `consensus_vote_metrics`, vote account | once per epoch per vote account | Static | `consensus_vote_metrics` | 1 | Needed |
+| Vote batch arrived | slot, vote type (notarize, notarize fallback, finalize, skip, skip fallback), block id for notarize votes, ranks in the batch (bitmap), monotonic ns when the verified batch reaches the pool | each verified vote batch | Bounded: a bitmap of the admitted set | nothing: `consensus_vote_metrics` keeps one mean per voter per epoch | 3 | Needed |
+| Our vote sent | slot, vote type, block id for notarize votes, monotonic ns | each vote this node sends | Static | nothing: our votes skip the verify path, and the `vote_notarize` time in `event_handler_slot_tracking` counts from a start that differs per slot | 3 | Needed |
+| Certificate formed | slot, certificate type (notarize, notarize fallback, skip, fast finalize, finalize), block id, ranks in it (bitmap), built here or received, monotonic ns | each certificate the pool builds or ingests | Bounded: a bitmap of the admitted set | nothing: no report says when a block was notarized; for finalization, the Finalization certificate row too | 3 | Needed |
 
 ### Counters
 
@@ -101,6 +104,7 @@ Activation depends on the cluster's warmup and cooldown rate. So Epoch stake car
 Each of these is priority 3. The dashboard shows none of them today.
 
 - Shred arrival, in the table above: a shred timeline for each block.
+- Vote batch arrived, Our vote sent and Certificate formed, in the table above: each block's certificate forming, with when stake arrived, where our vote fell and who was late.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - The TPU counters with a slot, read when the slot ends: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
