@@ -42,10 +42,14 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Leader slot timings | fields of `slot-metrics`, `leader-slot-start-to-cleared-elapsed-ms`, `broadcast-transmit-shreds-stats`, `broadcast-process-shreds-stats`, `banking_stage_scheduler_slot_timing` | each of our slots | Static | those datapoints | 1 | Needed |
 | Scheduler counts | fields of `banking_stage_scheduler_slot_counts`, scheduler id | each of our slots | Static | `banking_stage_scheduler_slot_counts` | 1 | Needed |
 | Worker timing | fields of `banking_stage_worker_timing`, worker id, **slot** | each report | Static | `banking_stage_worker_timing`; the slot is new | 1 | Needed |
+| Worker counts | fields of `banking_stage_worker_counts` and `banking_stage_worker_error_metrics`, worker id, the bank's slot | each report | Static | the per-second points; the slot is new | 3 | Needed |
+| TPU totals at slot end | slot, monotonic ns, and the running totals of `quic_streamer_tpu`, `quic_streamer_tpu_forwards`, `quic_streamer_tpu_vote` and `tpu-verifier` | the end of each of our leader slots, and the start of each leader turn | Static | the per-second points, differenced per turn | 3 | Needed |
 | Vote worker timing | fields of `banking_stage-leader_slot_vote_execute_and_commit_timings` | each of our slots | Static | that datapoint | 1 | Needed |
 | Block cost | fields of `cost_tracker_stats` | each of our slots | Static | `cost_tracker_stats` | 1 | Needed |
 | Bundles (jito) | fields of `bundle_stage-stats` | each of our slots | Static | `bundle_stage-stats` | 1 | Needed |
 | Message versions | slot, non-vote transactions that are legacy, v0, v1 | each of our slots, once full | Static | `Blockstore::get_slot_entries` | 2 | `Blockstore::get_slot_entries` |
+
+QUIC and verify run before a packet has a slot, so their split is by time: the totals at each slot's end. The workers know their bank, so their counts carry its slot exactly. With the scheduler counts above, each section of the TPU path can be shown for each slot.
 
 ### Votes and certificates (alpenglow)
 
@@ -106,7 +110,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 - Shred arrival, in the table above: a shred timeline for each block.
 - Vote batch arrived, Our vote sent and Certificate formed, in the table above: each block's certificate forming, with when stake arrived, where our vote fell and who was late.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
-- The TPU counters with a slot, read when the slot ends: the TPU path for each slot, not each leader turn.
+- Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
 - The reason for each skipped slot.
 - The costliest accounts of each of our blocks, as a bounded list.
