@@ -48,6 +48,7 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Block cost | fields of `cost_tracker_stats` | each of our slots | Static | `cost_tracker_stats` | 1 | Needed |
 | Bundles (jito) | fields of `bundle_stage-stats` | each of our slots | Static | `bundle_stage-stats` | 1 | Needed |
 | Message versions | slot, non-vote transactions that are legacy, v0, v1 | each of our slots, once full | Static | `Blockstore::get_slot_entries` | 2 | `Blockstore::get_slot_entries` |
+| Our block closed | slot, monotonic ns and wall clock ns when the block creation loop closes the block and produces its footer | each of our blocks | Static | nothing: the footer's time is clamped wall clock | 3 | Needed |
 
 QUIC and verify run before a packet has a slot, so their split is by time: the totals at each slot's end. The workers know their bank, so their counts carry its slot exactly. With the scheduler counts above, each section of the TPU path can be shown for each slot.
 
@@ -108,7 +109,7 @@ Activation depends on the cluster's warmup and cooldown rate. So Epoch stake car
 Each of these is priority 3. The dashboard shows none of them today.
 
 - Shred arrival, in the table above: a shred timeline for each block.
-- Vote batch arrived, Our vote sent and Certificate formed, in the table above: each block's certificate forming, with when stake arrived, where our vote fell and who was late.
+- Vote batch arrived, Our vote sent, Certificate formed and Our block closed, in the tables above: each block's certificate forming, with when stake arrived, where our vote fell and who was late. Our own blocks are timed from when we closed them, with skip votes showing the stake our block reached too late.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
