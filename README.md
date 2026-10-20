@@ -34,6 +34,8 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Slot status | slot, status (optimistically confirmed, rooted, finalized, skipped), monotonic ns | each change | Static | `BlockCommitmentCache`, `get_latest_optimistic_slots`, `Validator::highest_finalized`, `BankForks::root_bank` | 2 | those reads |
 | Our leader slots this epoch | epoch, leader slots passed, produced, skipped | each root, and at an interval | Static, state | `Bank::get_slot_history` | 2 | `Bank::get_slot_history` |
 | Shred arrival | slot, shred index, FEC set index, source (turbine, repaired or recovered from erasure coding), turbine layer it came from where known, monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
+| Repair requested | slot, shred index, monotonic ns | each shred this node asks a peer to repair | Static | nothing: when a missing shred was noticed, apart from when it came | 3 | Needed |
+| Replay progress | slot, highest shred index replayed so far, monotonic ns | each batch of entries replay executes | Static | nothing: how far replay has got through a block while it arrives | 3 | Needed |
 
 ### Our blocks
 
@@ -49,6 +51,7 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Bundles (jito) | fields of `bundle_stage-stats` | each of our slots | Static | `bundle_stage-stats` | 1 | Needed |
 | Message versions | slot, non-vote transactions that are legacy, v0, v1 | each of our slots, once full | Static | `Blockstore::get_slot_entries` | 2 | `Blockstore::get_slot_entries` |
 | Our block closed | slot, monotonic ns and wall clock ns when the block creation loop closes the block and produces its footer | each of our blocks | Static | nothing: the footer's time is clamped wall clock | 3 | Needed |
+| Shreds sent | slot, FEC set index, shreds in it, monotonic ns | each FEC set this node broadcasts as leader | Static | nothing: `broadcast-transmit-shreds-stats` gives one total per slot | 3 | Needed |
 
 QUIC and verify run before a packet has a slot, so their split is by time: the totals at each slot's end. The workers know their bank, so their counts carry its slot exactly. With the scheduler counts above, each section of the TPU path can be shown for each slot.
 
@@ -109,6 +112,7 @@ Activation depends on the cluster's warmup and cooldown rate. So Epoch stake car
 Each of these is priority 3. The dashboard shows none of them today.
 
 - Shred arrival, in the table above: a shred timeline for each block, showing which FEC sets were lost and rebuilt, which shreds repair fetched, and where in turbine they came from.
+- Repair requested, Replay progress and Shreds sent, in the tables above: the same timeline live across the cluster, with when each missing shred was asked for, how far replay got while a block arrived, and the shreds this node sent for its own blocks.
 - Vote batch arrived, Our vote sent, Certificate formed and Our block closed, in the tables above: each block's certificate forming, with when stake arrived, where our vote fell and who was late. Our own blocks are timed from when we closed them, with skip votes showing the stake our block reached too late.
 - Certificate formed, in the table above: which path finalized each slot, fast finalize or the second round, and by how much the first certificate led. Votor's `is_fast_finalization` turns true when a fast certificate forms after the second round has finalized the slot, so it can report fast for a slot the second round finalized first, though rarely (0.2% of slots on the alpenglow cluster, none on testnet).
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
