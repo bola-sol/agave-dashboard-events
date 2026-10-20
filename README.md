@@ -110,7 +110,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 
 - Shred arrival, in the table above: a shred timeline for each block.
 - Vote batch arrived, Our vote sent, Certificate formed and Our block closed, in the tables above: each block's certificate forming, with when stake arrived, where our vote fell and who was late. Our own blocks are timed from when we closed them, with skip votes showing the stake our block reached too late.
-- Certificate formed, in the table above: which path finalized each slot, fast finalize or the second round, and by how much the first certificate led. Votor's `is_fast_finalization` turns true when a fast certificate forms after the second round has finalized the slot, so it cannot say which came first.
+- Certificate formed, in the table above: which path finalized each slot, fast finalize or the second round, and by how much the first certificate led. Votor's `is_fast_finalization` turns true when a fast certificate forms after the second round has finalized the slot, so it can report fast for a slot the second round finalized first, though rarely (0.2% of slots on the alpenglow cluster, none on testnet).
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
