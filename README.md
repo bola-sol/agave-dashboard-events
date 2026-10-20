@@ -33,7 +33,7 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | First shred | slot, wall clock ms | a slot's first shred arrives | Static | `Blockstore::meta`, `Blockstore::highest_slot` | 2 | `Blockstore::meta` |
 | Slot status | slot, status (optimistically confirmed, rooted, finalized, skipped), monotonic ns | each change | Static | `BlockCommitmentCache`, `get_latest_optimistic_slots`, `Validator::highest_finalized`, `BankForks::root_bank` | 2 | those reads |
 | Our leader slots this epoch | epoch, leader slots passed, produced, skipped | each root, and at an interval | Static, state | `Bank::get_slot_history` | 2 | `Bank::get_slot_history` |
-| Shred arrival | slot, shred index, repaired or not, monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
+| Shred arrival | slot, shred index, FEC set index, source (turbine, repaired or recovered from erasure coding), turbine layer it came from where known, monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
 
 ### Our blocks
 
@@ -108,7 +108,7 @@ Activation depends on the cluster's warmup and cooldown rate. So Epoch stake car
 
 Each of these is priority 3. The dashboard shows none of them today.
 
-- Shred arrival, in the table above: a shred timeline for each block.
+- Shred arrival, in the table above: a shred timeline for each block, showing which FEC sets were lost and rebuilt, which shreds repair fetched, and where in turbine they came from.
 - Vote batch arrived, Our vote sent, Certificate formed and Our block closed, in the tables above: each block's certificate forming, with when stake arrived, where our vote fell and who was late. Our own blocks are timed from when we closed them, with skip votes showing the stake our block reached too late.
 - Certificate formed, in the table above: which path finalized each slot, fast finalize or the second round, and by how much the first certificate led. Votor's `is_fast_finalization` turns true when a fast certificate forms after the second round has finalized the slot, so it can report fast for a slot the second round finalized first, though rarely (0.2% of slots on the alpenglow cluster, none on testnet).
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
