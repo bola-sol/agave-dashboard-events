@@ -30,12 +30,15 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Slot replayed | fields of `replay-slot-stats` | replay completes a slot | Static | `replay-slot-stats` | 1 | Needed |
 | Block full | fields of `shred_insert_is_full`, wall clock ns | a slot's last shred is inserted | Static | `shred_insert_is_full` | 1 | Needed |
 | Turbine layers | fields of `retransmit-stage-slot-stats` | each slot | Static | `retransmit-stage-slot-stats` | 1 | Needed |
+| Block cost | fields of `cost_tracker_stats`, plus write locks (the writable accounts of each transaction, summed) and executed compute units (what the programs consumed, without the cost model's fixed charges) | replay freezes a bank, ours included | Static | `cost_tracker_stats`; the two counts are new | 1 | Needed |
 | First shred | slot, wall clock ms | a slot's first shred arrives | Static | `Blockstore::meta`, `Blockstore::highest_slot` | 2 | `Blockstore::meta` |
 | Slot status | slot, status (optimistically confirmed, rooted, finalized, skipped), monotonic ns | each change | Static | `BlockCommitmentCache`, `get_latest_optimistic_slots`, `Validator::highest_finalized`, `BankForks::root_bank` | 2 | those reads |
 | Our leader slots this epoch | epoch, leader slots passed, produced, skipped | each root, and at an interval | Static, state | `Bank::get_slot_history` | 2 | `Bank::get_slot_history` |
-| Shred arrival | slot, shred index, FEC set index, source (turbine, repaired or recovered from erasure coding), turbine layer it came from where known, monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
+| Shred arrival | slot, shred index, FEC set index, source (turbine, repaired or recovered from erasure coding), turbine layer it came from where known, whether it is the slot's last shred (`last_in_slot`), monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
 | Repair requested | slot, shred index, monotonic ns | each shred this node asks a peer to repair | Static | nothing: when a missing shred was noticed, apart from when it came | 3 | Needed |
-| Replay progress | slot, highest shred index replayed so far, monotonic ns | each batch of entries replay executes | Static | nothing: how far replay has got through a block while it arrives | 3 | Needed |
+| Replay progress | slot, highest shred index replayed so far, first and last entry index of the batch, transactions, executed compute units, write locks, execute ns summed over its transactions, monotonic ns | each batch of entries replay executes | Static | nothing: how far replay has got through a block while it arrives, and what each batch cost | 3 | Needed |
+
+Replay runs each transaction as its own task and interleaves entries, so a batch's execute time is CPU time summed across threads, not a span.
 
 ### Our blocks
 
@@ -47,9 +50,9 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Worker counts | fields of `banking_stage_worker_counts` and `banking_stage_worker_error_metrics`, worker id, the bank's slot | each report | Static | the per-second points; the slot is new | 3 | Needed |
 | TPU totals at slot end | slot, monotonic ns, and the running totals of `quic_streamer_tpu`, `quic_streamer_tpu_forwards`, `quic_streamer_tpu_vote` and `tpu-verifier` | the end of each of our leader slots, and the start of each leader turn | Static | the per-second points, differenced per turn | 3 | Needed |
 | Vote worker timing | fields of `banking_stage-leader_slot_vote_execute_and_commit_timings` | each of our slots | Static | that datapoint | 1 | Needed |
-| Block cost | fields of `cost_tracker_stats` | each of our slots | Static | `cost_tracker_stats` | 1 | Needed |
 | Bundles (jito) | fields of `bundle_stage-stats` | each of our slots | Static | `bundle_stage-stats` | 1 | Needed |
 | Message versions | slot, non-vote transactions that are legacy, v0, v1 | each of our slots, once full | Static | `Blockstore::get_slot_entries` | 2 | `Blockstore::get_slot_entries` |
+| Block production started | slot, monotonic ns, and whether production started from an optimistic parent or at ParentReady | each of our blocks | Static | nothing | 3 | Needed |
 | Our block closed | slot, monotonic ns and wall clock ns when the block creation loop closes the block and produces its footer | each of our blocks | Static | nothing: the footer's time is clamped wall clock | 3 | Needed |
 | Shreds sent | slot, FEC set index, shreds in it, monotonic ns | each FEC set this node broadcasts as leader | Static | nothing: `broadcast-transmit-shreds-stats` gives one total per slot | 3 | Needed |
 
@@ -63,6 +66,7 @@ QUIC and verify run before a packet has a slot, so their split is by time: the t
 | Reward certificate | rewarded slot, writer slot, notarize or skip, ranks paid (bitmap), notarize count, skip count, block producer time (wall clock ns) | each block footer replayed | Bounded: a bitmap of the admitted set | the parse of block footers (`get_slot_components_with_shred_info`) | 1 | the footer parse, which reads ledger bytes |
 | Finalization certificate | finalized slot, ranks that voted (bitmap) | each certificate | Bounded | `Bank::vote_accounts` `last_voted_slot` at freeze | 2 | `Bank::vote_accounts` |
 | Vote latency | fields of `consensus_vote_metrics`, vote account | once per epoch per vote account | Static | `consensus_vote_metrics` | 1 | Needed |
+| Parent ready | slot, parent slot, monotonic ns | each ParentReady votor observes | Static | nothing: the `parent_ready` time in `event_handler_slot_tracking` counts from a start that differs per slot, and is sent only once the slot is rooted | 3 | Needed |
 | Vote batch arrived | slot, vote type (notarize, notarize fallback, finalize, skip, skip fallback), block id for notarize votes, ranks in the batch (bitmap), monotonic ns when the verified batch reaches the pool | each verified vote batch | Bounded: a bitmap of the admitted set | nothing: `consensus_vote_metrics` keeps one mean per voter per epoch | 3 | Needed |
 | Our vote sent | slot, vote type, block id for notarize votes, monotonic ns | each vote this node sends | Static | nothing: our votes skip the verify path, and the `vote_notarize` time in `event_handler_slot_tracking` counts from a start that differs per slot | 3 | Needed |
 | Certificate formed | slot, certificate type (notarize, notarize fallback, skip, fast finalize, finalize), block id, ranks in it (bitmap), built here or received, monotonic ns | each certificate the pool builds or ingests | Bounded: a bitmap of the admitted set | nothing: no report says when a block was notarized; for finalization, the Finalization certificate row too | 3 | Needed |
@@ -115,6 +119,8 @@ Each of these is priority 3. The dashboard shows none of them today.
 - Repair requested, Replay progress and Shreds sent, in the tables above: the same timeline live across the cluster, with when each missing shred was asked for, how far replay got while a block arrived, and the shreds this node sent for its own blocks.
 - Vote batch arrived, Our vote sent, Certificate formed and Our block closed, in the tables above: each block's certificate forming, with when stake arrived, where our vote fell and who was late. Our own blocks are timed from when we closed them, with skip votes showing the stake our block reached too late.
 - Certificate formed, in the table above: which path finalized each slot, fast finalize or the second round, and by how much the first certificate led. Votor's `is_fast_finalization` turns true when a fast certificate forms after the second round has finalized the slot, so it can report fast for a slot the second round finalized first, though rarely (0.2% of slots on the alpenglow cluster, none on testnet).
+- Shred arrival's `last_in_slot`, Parent ready and Block production started, in the tables above: the gaps between shreds within each leader's blocks and at each handover between leaders. For our own windows, the time from our start to ParentReady: the optimistic prefix whose mainnet mean [SIMD-0630](https://github.com/solana-foundation/solana-improvement-documents/pull/630) sets `HANDOVER_COMPENSATION` to and asks to be measured. Both can be followed before and after SIMD-0630 and [SIMD-0675](https://github.com/solana-foundation/solana-improvement-documents/pull/675).
+- Replay progress and Block cost, in the tables above: an execution profile for each block and each batch of entries, with compute units per µs of execution, transactions and compute units per entry, and write locks per transaction.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
 - A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
