@@ -31,12 +31,15 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Block full | fields of `shred_insert_is_full`, wall clock ns | a slot's last shred is inserted | Static | `shred_insert_is_full` | 1 | Needed |
 | Turbine layers | fields of `retransmit-stage-slot-stats` | each slot | Static | `retransmit-stage-slot-stats` | 1 | Needed |
 | Block cost | fields of `cost_tracker_stats`, plus write locks (the writable accounts of each transaction, summed) and executed compute units (what the programs consumed, without the cost model's fixed charges) | replay freezes a bank, ours included | Static | `cost_tracker_stats`; the two counts are new | 1 | Needed |
+| Transaction outcome | slot, fee payer, succeeded, priority fee | each non-vote transaction replay commits, in every bank | Static | `status_cache` `get_status`, `get_signature_status_slot`, and `Blockstore::get_slot_entries` on every frozen bank | 1 | Needed |
 | First shred | slot, wall clock ms | a slot's first shred arrives | Static | `Blockstore::meta`, `Blockstore::highest_slot` | 2 | `Blockstore::meta` |
 | Slot status | slot, status (optimistically confirmed, rooted, finalized, skipped), monotonic ns | each change | Static | `BlockCommitmentCache`, `get_latest_optimistic_slots`, `Validator::highest_finalized`, `BankForks::root_bank` | 2 | those reads |
 | Our leader slots this epoch | epoch, leader slots passed, produced, skipped | each root, and at an interval | Static, state | `Bank::get_slot_history` | 2 | `Bank::get_slot_history` |
 | Shred arrival | slot, shred index, FEC set index, source (turbine, repaired or recovered from erasure coding), turbine layer it came from where known, whether it is the slot's last shred (`last_in_slot`), monotonic ns | each shred | Static | nothing: a new shred timeline | 3 | Needed |
 | Repair requested | slot, shred index, monotonic ns | each shred this node asks a peer to repair | Static | nothing: when a missing shred was noticed, apart from when it came | 3 | Needed |
 | Replay progress | slot, highest shred index replayed so far, first and last entry index of the batch, transactions, executed compute units, write locks, execute ns summed over its transactions, monotonic ns | each batch of entries replay executes | Static | nothing: how far replay has got through a block while it arrives, and what each batch cost | 3 | Needed |
+
+Transaction outcome runs to thousands of events a second on mainnet. A summary for each block, with failed and total counts by fee payer, would send far fewer, but needs a bound on its list.
 
 Replay runs each transaction as its own task and interleaves entries, so a batch's execute time is CPU time summed across threads, not a span.
 
@@ -63,7 +66,7 @@ QUIC and verify run before a packet has a slot, so their split is by time: the t
 | Event | Fields | When | Size | Replaces | P | In process |
 | --- | --- | --- | --- | --- | --- | --- |
 | Vote timing | fields of `event_handler_slot_tracking` | as votor reports | Static | `event_handler_slot_tracking` | 1 | Needed |
-| Reward certificate | rewarded slot, writer slot, notarize or skip, ranks paid (bitmap), notarize count, skip count, block producer time (wall clock ns) | each block footer replayed | Bounded: a bitmap of the admitted set | the parse of block footers (`get_slot_components_with_shred_info`) | 1 | the footer parse, which reads ledger bytes |
+| Reward certificate | rewarded slot, writer slot, notarize or skip, ranks paid (bitmap), notarize count, skip count, block producer time (wall clock ns), the finalization certificate the footer carries: its slot, and fast or slow | each block footer replayed | Bounded: a bitmap of the admitted set | the parse of block footers (`get_slot_components_with_shred_info`) | 1 | the footer parse, which reads ledger bytes |
 | Finalization certificate | finalized slot, ranks that voted (bitmap) | each certificate | Bounded | `Bank::vote_accounts` `last_voted_slot` at freeze | 2 | `Bank::vote_accounts` |
 | Vote latency | fields of `consensus_vote_metrics`, vote account | once per epoch per vote account | Static | `consensus_vote_metrics` | 1 | Needed |
 | Parent ready | slot, parent slot, monotonic ns | each ParentReady votor observes | Static | nothing: the `parent_ready` time in `event_handler_slot_tracking` counts from a start that differs per slot, and is sent only once the slot is rooted | 3 | Needed |
@@ -87,7 +90,7 @@ All of these are running totals, sent each second (gossip every two seconds).
 | Event | Fields | When | Size | Replaces | P | In process |
 | --- | --- | --- | --- | --- | --- | --- |
 | Peer | identity, shred version, client, version, gossip, TVU, TPU, TPU QUIC, RPC and votor addresses, start time, last heard (wall clock), full and incremental snapshot slots, lowest slot | on change; all peers at an interval | Per peer, bounded | `ClusterInfo::all_peers`, `gossip.crds` | 2 | `ClusterInfo::all_peers` |
-| Vote account | vote key, identity, activated stake, commission, credits this epoch, BLS key set, last voted slot | each epoch and each change of stake or commission; last voted slot and all accounts at an interval | Per account | `Bank::vote_accounts` | 2 | `Bank::vote_accounts` |
+| Vote account | vote key, identity, activated stake, commission, credits this epoch, BLS key set, last voted slot, pending delegator rewards | each epoch and each change of stake or commission; last voted slot and all accounts at an interval | Per account | `Bank::vote_accounts` | 2 | `Bank::vote_accounts` |
 | Stake delegation | stake account, vote account, delegated lamports, activation epoch, deactivation epoch | each stake account write that the stakes cache records | Static | nothing: a new stake view | 3 | Needed |
 | Epoch stake | epoch, vote account, effective, activating and deactivating lamports, as the runtime calculates them; once per epoch, the cluster's stake history entry | each epoch boundary | Per vote account | `Bank::epoch_stakes`, for effective stake only | 3 | Needed |
 | Our delegations | the Stake delegation fields, for each stake account delegated to this node's vote account | at start and at an interval | Per stake account | nothing | 3 | Needed |
@@ -123,7 +126,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 - Replay progress and Block cost, in the tables above: an execution profile for each block and each batch of entries, with compute units per µs of execution, transactions and compute units per entry, and write locks per transaction.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
-- A record for each transaction in our blocks: signature, fee, compute, status and execution time. The record is bounded, and does not need the transaction itself.
+- Transaction outcome, in the table above, with signature, compute and execution time added for our blocks. The record is bounded, and does not need the transaction itself.
 - The reason for each skipped slot.
 - The costliest accounts of each of our blocks, as a bounded list.
 - Compute for each of our blocks, split into votes, bundles and the rest.
@@ -167,6 +170,6 @@ Each branch's INPUTS.md lists the inputs that build reads, with each exact field
 | Validator | Branch | INPUTS.md |
 | --- | --- | --- |
 | Agave 4.3 | `dashboard/v4.3.2` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.3.2/dashboard/INPUTS.md) |
-| Agave 4.4 | `dashboard/v4.4.0-beta.1` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.4.0-beta.1/dashboard/INPUTS.md) |
-| Jito 4.3 | `dashboard/v4.3.2-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.2-jito/dashboard/INPUTS.md) |
-| Jito 4.4 | `dashboard/v4.4.0-beta.1-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.0-beta.1-jito/dashboard/INPUTS.md) |
+| Agave 4.4 | `dashboard/v4.4.0` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.4.0/dashboard/INPUTS.md) |
+| Jito 4.3 | `dashboard/v4.3.2-jito.0` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.2-jito.0/dashboard/INPUTS.md) |
+| Jito 4.4 | `dashboard/v4.4.0-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.0-jito/dashboard/INPUTS.md) |
