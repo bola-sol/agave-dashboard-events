@@ -31,7 +31,7 @@ The **In process** column is for a dashboard that runs inside the validator. **N
 | Block full | fields of `shred_insert_is_full`, wall clock ns | a slot's last shred is inserted | Static | `shred_insert_is_full` | 1 | Needed |
 | Turbine layers | fields of `retransmit-stage-slot-stats` | each slot | Static | `retransmit-stage-slot-stats` | 1 | Needed |
 | Block cost | fields of `cost_tracker_stats`, plus write locks (the writable accounts of each transaction, summed) and executed compute units (what the programs consumed, without the cost model's fixed charges) | replay freezes a bank, ours included | Static | `cost_tracker_stats`; the two counts are new | 1 | Needed |
-| Transaction outcome | slot, fee payer, succeeded, priority fee | each non-vote transaction replay commits, in every bank | Static | `status_cache` `get_status`, `get_signature_status_slot`, and `Blockstore::get_slot_entries` on every frozen bank | 1 | Needed |
+| Transaction outcome | slot, fee payer, succeeded, priority fee, total fee | each non-vote transaction committed, in every bank: by replay, or by the banking stage in our own blocks | Static | `status_cache` `get_status`, `get_signature_status_slot`, and `Blockstore::get_slot_entries` on every frozen bank | 1 | Needed |
 | First shred | slot, wall clock ms, monotonic ns, source (turbine, repaired or recovered from erasure coding), turbine layer it came from (root, 1 or 2) where known, shred index and type | a slot's first shred arrives | Static | `Blockstore::meta`, `Blockstore::highest_slot`; the other fields are new | 2 | `Blockstore::meta` |
 | Slot status | slot, status (optimistically confirmed, rooted, finalized, skipped), monotonic ns | each change | Static | `BlockCommitmentCache`, `get_latest_optimistic_slots`, `Validator::highest_finalized`, `BankForks::root_bank` | 2 | those reads |
 | Our leader slots this epoch | epoch, leader slots passed, produced, skipped | each root, and at an interval | Static, state | `Bank::get_slot_history` | 2 | `Bank::get_slot_history` |
@@ -132,7 +132,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 - Stake delegation, Epoch stake and Our delegations, in the table above: stake activating and deactivating for this node and the cluster, and the changes to it.
 - Votor link and Votor inbound failures, in the table above: for each peer in the Gossip table, how often our votor connection to it fails, times out or is lost, and its round-trip time and loss while it is up; and the addresses that fail to reach us, for a peer whose votes do not arrive.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
-- Transaction outcome, in the table above, with signature, compute and execution time added for our blocks. The record is bounded, and does not need the transaction itself.
+- Transaction outcome, in the table above, with signature, compute and execution time added for our blocks. The signature names the rows of each block's top transactions by fee. The record is bounded, and does not need the transaction itself.
 - Transaction source, in the table above: which connection delivered each transaction in our blocks.
 - The reason for each skipped slot.
 - The costliest accounts of each of our blocks, as a bounded list.
