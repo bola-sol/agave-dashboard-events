@@ -52,6 +52,7 @@ Replay runs each transaction as its own task and interleaves entries, so a batch
 | Worker timing | fields of `banking_stage_worker_timing`, worker id, **slot** | each report | Static | `banking_stage_worker_timing`; the slot is new | 1 | Needed |
 | Worker counts | fields of `banking_stage_worker_counts` and `banking_stage_worker_error_metrics`, worker id, the bank's slot | each report | Static | the per-second points; the slot is new | 3 | Needed |
 | TPU totals at slot end | slot, monotonic ns, and the running totals of `quic_streamer_tpu`, `quic_streamer_tpu_forwards`, `quic_streamer_tpu_vote` and `tpu-verifier` | the end of each of our leader slots, and the start of each leader turn | Static | the per-second points, differenced per turn | 3 | Needed |
+| Transaction source | signature, source address, whether the connection is staked, monotonic ns | each non-vote packet leaving signature verification during our leader turns | Static | nothing: the address never reaches a block | 3 | Needed |
 | Vote worker timing | fields of `banking_stage-leader_slot_vote_execute_and_commit_timings` | each of our slots | Static | that datapoint | 1 | Needed |
 | Bundles (jito) | fields of `bundle_stage-stats` | each of our slots | Static | `bundle_stage-stats` | 1 | Needed |
 | Message versions | slot, non-vote transactions that are legacy, v0, v1 | each of our slots, once full | Static | `Blockstore::get_slot_entries` | 2 | `Blockstore::get_slot_entries` |
@@ -60,6 +61,8 @@ Replay runs each transaction as its own task and interleaves entries, so a batch
 | Shreds sent | slot, FEC set index, shreds in it, monotonic ns | each FEC set this node broadcasts as leader | Static | nothing: `broadcast-transmit-shreds-stats` gives one total per slot | 3 | Needed |
 
 QUIC and verify run before a packet has a slot, so their split is by time: the totals at each slot's end. The workers know their bank, so their counts carry its slot exactly. With the scheduler counts above, each section of the TPU path can be shown for each slot.
+
+Transaction source joins Transaction outcome by signature, so the banking stage does not need to carry the address. The address is the connection that delivered the packet, which can be an RPC node, relay or forwarder rather than the original sender. Deduplication runs first, so only the first copy to arrive is reported. Packets that never land are reported too, so this runs above Transaction outcome's volume.
 
 ### Votes and certificates (alpenglow)
 
@@ -130,6 +133,7 @@ Each of these is priority 3. The dashboard shows none of them today.
 - Votor link and Votor inbound failures, in the table above: for each peer in the Gossip table, how often our votor connection to it fails, times out or is lost, and its round-trip time and loss while it is up; and the addresses that fail to reach us, for a peer whose votes do not arrive.
 - Worker counts and TPU totals at slot end, in the table above: the TPU path for each slot, not each leader turn.
 - Transaction outcome, in the table above, with signature, compute and execution time added for our blocks. The record is bounded, and does not need the transaction itself.
+- Transaction source, in the table above: which connection delivered each transaction in our blocks.
 - The reason for each skipped slot.
 - The costliest accounts of each of our blocks, as a bounded list.
 - Compute for each of our blocks, split into votes, bundles and the rest.
@@ -175,4 +179,4 @@ Each branch's INPUTS.md lists the inputs that build reads, with each exact field
 | Agave 4.3 | `dashboard/v4.3.2` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.3.2/dashboard/INPUTS.md) |
 | Agave 4.4 | `dashboard/v4.4.1` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.4.1/dashboard/INPUTS.md) |
 | Jito 4.3 | `dashboard/v4.3.2-jito.0` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.2-jito.0/dashboard/INPUTS.md) |
-| Jito 4.4 | `dashboard/v4.4.0-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.0-jito/dashboard/INPUTS.md) |
+| Jito 4.4 | `dashboard/v4.4.1-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.1-jito/dashboard/INPUTS.md) |
