@@ -92,7 +92,7 @@ All of these are running totals, sent each second (gossip every two seconds).
 
 | Event | Fields | When | Size | Replaces | P | In process |
 | --- | --- | --- | --- | --- | --- | --- |
-| Peer | identity, shred version, client, version, gossip, TVU, TPU, TPU QUIC, RPC and votor addresses, start time, last heard (wall clock), full and incremental snapshot slots, lowest slot | on change; all peers at an interval | Per peer, bounded | `ClusterInfo::all_peers`, `gossip.crds` | 2 | `ClusterInfo::all_peers` |
+| Peer | identity, shred version, client, version, gossip, TVU, TPU, TPU QUIC, RPC and votor addresses, start time, last heard (wall clock), full and incremental snapshot slots | on change; all peers at an interval | Per peer, bounded | `ClusterInfo::all_peers`, `gossip.crds` | 2 | `ClusterInfo::all_peers` |
 | Votor link (alpenglow) | identity, votor address, direction (ours or theirs), state (connecting, established, closed), the last close reason; running totals of attempts, connections established, failed, timed out and lost; on a live connection, round-trip time, packets sent and lost, and congestion events from quinn's path stats | each attempt's outcome and each close; all live connections at an interval | Per peer, bounded by the admitted set | nothing: `votor_datagram_client` and `votor_datagram_server` count all peers together, and the per-peer failures are only `warn!` lines in the log | 3 | Needed |
 | Votor inbound failures (alpenglow) | remote address, running totals of handshakes timed out, failed and refused (not admitted or banned, or the table full), by address | at an interval, for the addresses with the most failures | Per address, bounded | nothing: a handshake that fails before TLS completes gives no identity, and the counts are only totals in `votor_datagram_server` | 3 | Needed |
 | Vote account | vote key, identity, activated stake, commission, credits this epoch, BLS key set, last voted slot, pending delegator rewards | each epoch and each change of stake or commission; last voted slot and all accounts at an interval | Per account | `Bank::vote_accounts` | 2 | `Bank::vote_accounts` |
@@ -178,5 +178,6 @@ Each branch's INPUTS.md lists the inputs that build reads, with each exact field
 | --- | --- | --- |
 | Agave 4.3 | `dashboard/v4.3.2` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.3.2/dashboard/INPUTS.md) |
 | Agave 4.4 | `dashboard/v4.4.1` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.4.1/dashboard/INPUTS.md) |
+| Agave 4.5 | `dashboard/v4.5.0-beta.0` | [bola-sol/agave](https://github.com/bola-sol/agave/blob/dashboard/v4.5.0-beta.0/dashboard/INPUTS.md) |
 | Jito 4.3 | `dashboard/v4.3.2-jito.0` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.3.2-jito.0/dashboard/INPUTS.md) |
 | Jito 4.4 | `dashboard/v4.4.1-jito` | [bola-sol/jito-solana](https://github.com/bola-sol/jito-solana/blob/dashboard/v4.4.1-jito/dashboard/INPUTS.md) |
